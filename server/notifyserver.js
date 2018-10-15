@@ -86,7 +86,13 @@ app.get("/test", function(req, res) {
 });
 
 function registerSelf() {
-	request.post('http://localhost:8000/register', {form:{path:'notify', ip: 'http://localhost:8010', name: 'notify'}}, function(err, res, body) {
+	const postData = {
+		path: 'notify',
+		ip: 'http://localhost:8020',
+		name: 'notify'
+	}
+
+	request.post('http://localhost:8000/register', {form: postData}, function(err, res, body) {
 		if (res && res.statusCode && (res.statusCode === 200 || res.statusCode === 204)) {
 			console.log("Successfully registered");
 		} else {
@@ -96,7 +102,7 @@ function registerSelf() {
 	});
 }
 
-httpServer.listen(process.env.PORT || 8010, function() {
+httpServer.listen(process.env.PORT || 8020, function() {
 	registerSelf();
 	console.log("Server started on port: "+httpServer.address().port);
 });

@@ -22,7 +22,7 @@ $ npm install
 
 ### Run the application
 ```bash
-$ node server/notify
-Server started on port: 8010
+$ node server/notifyserver
+Server started on port: 8020
 Successfully registered
 ```
