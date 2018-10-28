@@ -1,10 +1,10 @@
 
 # NotifyServer
-Nodejs microservice for Raspberry. Use [WaspServer](https://github.com/Anarch1st/WaspServer) as the main router.
+Nodejs microservice for Raspberry. Use [WaspServer](https://github.com/Saii626/WaspServer) as the main router.
 
 ### Get the source code
 ```bash
-$ git clone git@github.com:Anarch1st/NotifyServer.git
+$ git clone git@github.com:Saii626/NotifyServer.git
 $ cd NotifyServer
 ```
 
