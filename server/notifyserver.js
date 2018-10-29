@@ -14,6 +14,7 @@ admin.initializeApp( {
 });
 
 const tokens = path.resolve(__dirname, "../private/tokens.json");
+app.use(express.json());
 
 app.post('/register', function(req, res) {
 	jsonfile.readFile(tokens, function(err, obj) {
