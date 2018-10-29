@@ -35,7 +35,7 @@ app.post('/register', function(req, res) {
 			temp.token = token;
 		} else {
 			obj.push({source: source,
-								token: token});
+				token: token});
 		}
 
 		jsonfile.writeFile(tokens, obj, function(err) {
@@ -57,22 +57,24 @@ app.post('/*', function(req, res) {
 			}
 		}
 
-		const message = {
-  		notification: {
-    		title: req.body.title,
-    		body: req.body.body
-  		},
-  		token: token
-		};
+		if (token) {
+			const message = {
+				notification: {
+					title: req.body.title,
+					body: req.body.body
+				},
+				token: token
+			};
 
-		admin.messaging().send(message)
-  	.then((response) => {
-			res.send("Success");
-  	})
-  	.catch((error) => {
-			res.status(500);
-			res.send({error: error})
-  	});
+			admin.messaging().send(message)
+			.then((response) => {
+				res.send("Success");
+			})
+			.catch((error) => {
+				res.status(500);
+				res.send({error: error})
+			});
+		}
 	});
 })
 
@@ -83,7 +85,7 @@ app.get("/test", function(req, res) {
 		const user = JSON.parse(req.headers.user);
 		res.send(user);
 	}
-		res.end();
+	res.end();
 });
 
 function registerSelf() {
