@@ -14,7 +14,13 @@ admin.initializeApp({
 });
 
 const tokens = path.resolve(__dirname, "../private/tokens.json");
+
 app.use(express.json());
+app.use('/', express.static(path.join(__dirname, '../public/files')));
+
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/files/index.html'));
+});
 
 app.post('/register', function(req, res) {
   jsonfile.readFile(tokens, function(err, obj) {
@@ -82,16 +88,6 @@ app.post('/*', function(req, res) {
         });
     }
   });
-})
-
-app.get("/test", function(req, res) {
-  // if (req.headers.user === "Anonymous") {
-  //   res.send("Anonymous");
-  // } else {
-  //   const user = JSON.parse(req.headers.user);
-  //   res.send(user);
-  // }
-  res.end();
 });
 
 function registerSelf() {
@@ -114,6 +110,6 @@ function registerSelf() {
 }
 
 httpServer.listen(process.env.PORT || 8020, function() {
-  // registerSelf();
+  registerSelf();
   console.log("Server started on port: " + httpServer.address().port);
 });
