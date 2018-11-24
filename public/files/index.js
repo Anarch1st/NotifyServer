@@ -12,6 +12,19 @@ const messaging = firebase.messaging();
 // Add the public key generated from the console here.
 messaging.usePublicVapidKey("BAUdhPLcR29dq_U6qTBJ4WAf1-83qfycf1Mut3RPtyNOhooMyEF3L0F6LAcVene2unVAi3LBf_Ru0KmeeakH36I");
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js').then(function(registration) {
+      // Registration was successful
+      console.log('ServiceWorker registration successful with scope: ', registration.scope);
+      messaging.userServiceWorker(registration);
+    }, function(err) {
+      // registration faiced :(
+      console.log('ServiceWorker registration failed: ', err);
+    });
+  });
+}
+
 messaging.requestPermission().then(function() {
   console.log('Notification permission granted.');
   messaging.getToken().then(function(currentToken) {
