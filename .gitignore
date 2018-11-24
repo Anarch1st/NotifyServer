@@ -63,3 +63,4 @@ typings/
 # Private files
 private/
 public/assets
+public/notify/assets
