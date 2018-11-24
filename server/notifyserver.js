@@ -76,6 +76,7 @@ app.post('/*', function(req, res) {
         token: token
       };
 
+	console.log(message);
       admin.messaging().send(message)
         .then((response) => {
           res.send("Success");
