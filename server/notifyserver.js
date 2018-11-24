@@ -16,10 +16,13 @@ admin.initializeApp({
 const tokens = path.resolve(__dirname, "../private/tokens.json");
 
 app.use(express.json());
-app.use('/', express.static(path.join(__dirname, '../public/files')));
+app.use('/', express.static(path.join(__dirname, '../public/notify')));
+
+
+const isSecure = (process.env.NODE_ENV === "production") ? false : true;
 
 app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/files/index.html'));
+  res.sendFile(path.join(__dirname, '../public/notify/index.html'));
 });
 
 app.post('/register', function(req, res) {
@@ -27,6 +30,8 @@ app.post('/register', function(req, res) {
     const source = req.body.source;
     const token = req.body.token;
 
+    console.log(source);
+    console.log(token);
     var temp = null;
     if (obj.length > 0) {
       for (var item of obj) {
@@ -38,22 +43,46 @@ app.post('/register', function(req, res) {
     }
     if (temp) {
       temp.token = token;
-			res.status(200);
+      res.status(200);
     } else {
       obj.push({
         source: source,
         token: token
       });
-			res.status(201);
+      res.status(201);
     }
 
-		res.end();
+    res.end();
     jsonfile.writeFile(tokens, obj, function(err) {
       if (err) {
         console.trace(err);
       }
     });
   });
+});
+
+app.get('/list', (req, res) => {
+  if (isSecure || req.headers.user !== "Anonymous") {
+    jsonfile.readFile(tokens, (err, obj) => {
+      if (err) {
+        res.send(err);
+        return;
+      }
+
+      let devices = [];
+
+      if (obj.length > 0) {
+        for (var item of obj) {
+          devices.push(item.source);
+        }
+      }
+      res.send(devices);
+      res.end();
+    });
+  } else {
+    res.status(401);
+    res.end();
+  }
 });
 
 app.post('/*', function(req, res) {
@@ -76,7 +105,6 @@ app.post('/*', function(req, res) {
         token: token
       };
 
-	console.log(message);
       admin.messaging().send(message)
         .then((response) => {
           res.send("Success");
