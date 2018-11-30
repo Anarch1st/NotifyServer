@@ -98,11 +98,19 @@ app.post('/*', function(req, res) {
 
     if (token) {
       const message = {
+        token: token,
         notification: {
           title: req.body.title,
           body: req.body.body
         },
-        token: token
+        android: {
+          ttl: 60000
+        },
+        webpush: {
+          headers: {
+            TTL: '60'
+          }
+        }
       };
 
       admin.messaging().send(message)
