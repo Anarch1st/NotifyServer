@@ -164,6 +164,10 @@ export class RegisterNotify extends PolymerElement {
       console.log('Message received. ', payload);
       // ...
     });
+
+    this.messaging.onTokenRefresh(() => {
+      this._messagingInitialized();
+    });
   }
 
   registerSelf() {
