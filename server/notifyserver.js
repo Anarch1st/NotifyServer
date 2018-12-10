@@ -104,7 +104,7 @@ app.post('/*', function(req, res) {
           body: req.body.body
         },
         android: {
-          ttl: 60000
+          ttl: 60 * 1000 //1 min
         },
         webpush: {
           headers: {
