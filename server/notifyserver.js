@@ -96,6 +96,7 @@ app.post('/*', function(req, res) {
       }
     }
 
+    showDataInLCD('New Notification', req.body.title);
     if (token) {
       const message = {
         token: token,
@@ -116,16 +117,39 @@ app.post('/*', function(req, res) {
       admin.messaging().send(message)
         .then((response) => {
           res.send("Success");
+          showDataInLCD(target, 'Success')
         })
         .catch((error) => {
           res.status(500);
           res.send({
             error: error
-          })
+          });
+          showDataInLCD(error.code, error.message);
         });
     }
   });
 });
+
+function showDataInLCD(line1, line2) {
+  let postData = {
+    msgs: [{
+        msg: line1,
+        line: 3
+      },
+      {
+        msg: line2,
+        line: 4
+      }
+    ]
+  }
+  request.post('http://localhost:8040/lcd/flashMsg', {
+    json: postData
+  }, function(err, res, body) {
+    if (err) {
+      console.error(err);
+    }
+  });
+}
 
 function registerSelf() {
   const postData = {
