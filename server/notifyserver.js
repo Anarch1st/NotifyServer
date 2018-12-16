@@ -126,6 +126,12 @@ app.post('/*', function(req, res) {
           });
           showDataInLCD(error.code, error.message);
         });
+    } else {
+      res.status(404);
+      res.send({
+        error: 'Device not found'
+      });
+      showDataInLCD('No such device', target + '   ' + 404)
     }
   });
 });
