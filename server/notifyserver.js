@@ -96,7 +96,7 @@ app.post('/*', function(req, res) {
       }
     }
 
-    showDataInLCD('New Notification', req.body.title);
+    showDataInLCD('New Notification for ' + target);
     if (token) {
       const message = {
         token: token,
@@ -117,38 +117,34 @@ app.post('/*', function(req, res) {
       admin.messaging().send(message)
         .then((response) => {
           res.send("Success");
-          showDataInLCD(target, 'Success')
+          showDataInLCD(target + ' success')
         })
         .catch((error) => {
           res.status(500);
           res.send({
             error: error
           });
-          showDataInLCD(error.code, error.message);
+          showDataInLCD(target + ' error. msg: ' + error.message);
         });
     } else {
       res.status(404);
       res.send({
         error: 'Device not found'
       });
-      showDataInLCD('No such device', target + '   ' + 404)
+      showDataInLCD(target + ' not registered.')
     }
   });
 });
 
-function showDataInLCD(line1, line2) {
+function showDataInLCD(str) {
   let postData = {
-    msgs: [{
-        msg: line1,
-        line: 3
-      },
-      {
-        msg: line2,
-        line: 4
-      }
-    ]
+    msg: {
+      msg: str,
+      duration: 5
+    }
+
   }
-  request.post('http://localhost:8040/lcd/flashMsg', {
+  request.post('http://localhost:8040/lcd/displayMsg', {
     json: postData
   }, function(err, res, body) {
     if (err) {
