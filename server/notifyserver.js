@@ -18,9 +18,6 @@ const tokens = path.resolve(__dirname, "../private/tokens.json");
 app.use(express.json());
 app.use('/', express.static(path.join(__dirname, '../public/notify')));
 
-
-const isSecure = (process.env.NODE_ENV === "production") ? false : true;
-
 app.get('/register', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/notify/index.html'));
 });
@@ -62,7 +59,7 @@ app.post('/register', function(req, res) {
 });
 
 app.get('/list', (req, res) => {
-  if (isSecure || req.headers.user !== "Anonymous") {
+  if (req.headers.isSecure === "true") {
     jsonfile.readFile(tokens, (err, obj) => {
       if (err) {
         res.send(err);
