@@ -3,10 +3,8 @@
   "version": "1.0.0",
   "author": "Saii",
   "license": "ISC",
-  "devDependencies": {
-    "@0xcda7a/empathy": "0.0.9"
-  },
   "dependencies": {
+    "@0xcda7a/empathy": "0.0.9",
     "@polymer/iron-ajax": "^3.0.1",
     "@polymer/paper-button": "^3.0.1",
     "@polymer/paper-dropdown-menu": "^3.0.1",

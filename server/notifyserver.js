@@ -18,9 +18,6 @@ const tokens = path.resolve(__dirname, "../private/tokens.json");
 app.use(express.json());
 app.use('/', express.static(path.join(__dirname, '../public/notify')));
 
-
-const isSecure = (process.env.NODE_ENV === "production") ? false : true;
-
 app.get('/register', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/notify/index.html'));
 });
@@ -62,7 +59,7 @@ app.post('/register', function(req, res) {
 });
 
 app.get('/list', (req, res) => {
-  if (isSecure || req.headers.user !== "Anonymous") {
+  if (req.headers.isSecure === "true") {
     jsonfile.readFile(tokens, (err, obj) => {
       if (err) {
         res.send(err);
@@ -96,7 +93,7 @@ app.post('/*', function(req, res) {
       }
     }
 
-    showDataInLCD('New Notification for ' + target);
+    showDataInLCD('New Notification for ' + target + ' titled ' + req.body.title);
     if (token) {
       const message = {
         token: token,
@@ -117,21 +114,19 @@ app.post('/*', function(req, res) {
       admin.messaging().send(message)
         .then((response) => {
           res.send("Success");
-          showDataInLCD(target + ' success')
         })
         .catch((error) => {
           res.status(500);
           res.send({
             error: error
           });
-          showDataInLCD(target + ' error. msg: ' + error.message);
+          showDataInLCD(target + ' error 500');
         });
     } else {
       res.status(404);
       res.send({
         error: 'Device not found'
       });
-      showDataInLCD(target + ' not registered.')
     }
   });
 });
