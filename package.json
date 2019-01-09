@@ -20,7 +20,7 @@
   "nodemonConfig": {
     "verbose": true,
     "ignore": [
-      "public/*",
+      "public/",
       "node_modules/*"
     ],
     "events": {

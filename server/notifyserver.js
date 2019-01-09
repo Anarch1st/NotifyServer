@@ -16,10 +16,17 @@ admin.initializeApp({
 const tokens = path.resolve(__dirname, "../private/tokens.json");
 
 app.use(express.json());
-app.use('/', express.static(path.join(__dirname, '../public/notify')));
-
+if (process.env.NODE_ENV === 'production') {
+  app.use('/', express.static(path.join(__dirname, '../public/build/default')));
+} else {
+  app.use('/', express.static(path.join(__dirname, '../public/build/dev')));
+}
 app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/notify/index.html'));
+  if (process.env.NODE_ENV === 'production') {
+    res.sendFile(path.join(__dirname, '../public/build/default/index.html'));
+  } else {
+    res.sendFile(path.join(__dirname, '../public/build/dev/index.html'));
+  }
 });
 
 app.post('/register', function(req, res) {
@@ -59,7 +66,7 @@ app.post('/register', function(req, res) {
 });
 
 app.get('/list', (req, res) => {
-  if (req.headers.isSecure === "true") {
+  if (req.headers.issecure === "true") {
     jsonfile.readFile(tokens, (err, obj) => {
       if (err) {
         res.send(err);
