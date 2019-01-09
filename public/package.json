@@ -4,7 +4,6 @@
   "author": "Saii",
   "license": "ISC",
   "dependencies": {
-    "@0xcda7a/empathy": "0.0.9",
     "@polymer/iron-ajax": "^3.0.1",
     "@polymer/paper-button": "^3.0.1",
     "@polymer/paper-dropdown-menu": "^3.0.1",
@@ -16,6 +15,6 @@
     "web-animations-js": "^2.3.1"
   },
   "scripts": {
-    "postinstall": "empathy install -a notify/assets && cp -r notify/assets assets && rm -r assets"
+    "postinstall": "polymer build"
   }
 }

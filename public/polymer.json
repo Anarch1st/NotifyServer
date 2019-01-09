@@ -1,0 +1,39 @@
+{
+  "entrypoint": "index.html",
+  "shell": "register-notify.js",
+  "sources": [
+    "css/*",
+    "images/*",
+    "res.js",
+    "sw.js"
+  ],
+  "extraDependencies": ["manifest.json", "node_modules/web-animations-js/*"],
+  "npm": true,
+  "builds": [{
+    "name": "default",
+    "bundle": true,
+    "js": {
+      "minify": true,
+      "compile": "es2015"
+    },
+    "css": {
+      "minify": true
+    },
+    "html": {
+      "minify": true
+    }
+  }, {
+    "name": "dev",
+    "bundle": false,
+    "js": {
+      "minify": false,
+      "compile": "es2015"
+    },
+    "css": {
+      "minify": false
+    },
+    "html": {
+      "minify": false
+    }
+  }]
+}

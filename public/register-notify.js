@@ -1,13 +1,13 @@
 import {
   PolymerElement,
   html
-} from '../notify/assets/@polymer/polymer/polymer-element.js';
-import '../notify/assets/@polymer/iron-ajax/iron-ajax.js';
-import '../notify/assets/@polymer/paper-button/paper-button.js';
-import '../notify/assets/@polymer/paper-input/paper-input.js';
-import '../notify/assets/@polymer/paper-dropdown-menu/paper-dropdown-menu.js'
-import '../notify/assets/@polymer/paper-item/paper-item.js';
-import '../notify/assets/@polymer/paper-listbox/paper-listbox.js';
+} from '@polymer/polymer/polymer-element.js';
+import '@polymer/iron-ajax/iron-ajax.js';
+import '@polymer/paper-button/paper-button.js';
+import '@polymer/paper-input/paper-input.js';
+import '@polymer/paper-dropdown-menu/paper-dropdown-menu.js'
+import '@polymer/paper-item/paper-item.js';
+import '@polymer/paper-listbox/paper-listbox.js';
 
 export class RegisterNotify extends PolymerElement {
   constructor() {
