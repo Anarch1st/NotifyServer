@@ -12,6 +12,8 @@ import '@polymer/paper-listbox/paper-listbox.js';
 export class RegisterNotify extends PolymerElement {
   constructor() {
     super();
+
+    this._boundMessingInit = this.initializeMessaging.bind(this);
   }
 
   ready() {
@@ -20,6 +22,16 @@ export class RegisterNotify extends PolymerElement {
 
     this.$.submitReg.addEventListener('click', this.registerSelf.bind(this));
     this.$.submitNoti.addEventListener('click', this.postNotification.bind(this));
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener('firebase-init', this._boundMessingInit)
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('firebase-init', this._boundMessingInit);
   }
 
   static get template() {
@@ -83,10 +95,6 @@ export class RegisterNotify extends PolymerElement {
 
   static get properties() {
     return {
-      _resources: {
-        type: Object,
-        value: Resources
-      },
       deviceList: {
         type: Array,
         value: [],
@@ -94,11 +102,7 @@ export class RegisterNotify extends PolymerElement {
       },
       messaging: {
         type: Object,
-        observer: '_messagingInitialized'
-      },
-      token: {
-        type: String,
-        observer: '_tokenRefreshed'
+        value: {}
       }
     }
   }
@@ -132,64 +136,39 @@ export class RegisterNotify extends PolymerElement {
     xhr.url = '/notify/' + this.$.notifyDevice.value;
     xhr.body = {
       title: this.$.notifyTitle.value,
-      body: this.$.notifyBody.value
+      body: this.$.notifyBody.value,
+      source: 'web'
     }
 
     xhr.generateRequest();
-  }
-
-  _tokenRefreshed() {
-    if (this.token) {
-      this.registerSelf();
-    }
-  }
-
-  _messagingInitialized() {
-
-    if (!this.messaging) {
-      return;
-    }
-
-    this.messaging.getToken().then(function(currentToken) {
-      if (currentToken) {
-        this.set('token', currentToken);
-      } else {
-        console.log('No Instance ID token available. Request permission to generate one.');
-      }
-    }.bind(this)).catch(function(err) {
-      console.log('An error occurred while retrieving token. ', err);
-    });
-
-    this.messaging.onMessage(function(payload) {
-      console.log('Message received. ', payload);
-      // ...
-    });
-
-    this.messaging.onTokenRefresh(() => {
-      this._messagingInitialized();
-    });
   }
 
   registerSelf() {
-    if (!this.token) {
-      this._resources.setupFireBase(function() {
-        this.set('messaging', firebase.messaging());
-        console.log('messaging set');
-      }.bind(this));
-      return;
-    }
+    this.messaging.getToken().then(token => {
+      if (token) {
+        let xhr = this.$.register;
+        xhr.body = {
+          source: this.$.regText.value,
+          token: token
+        };
+        xhr.generateRequest();
+      } else {
+        this.messaging.requestPermission().then(() => {
+          console.log('Notification permission granted.');
+          this.registerSelf();
+        }).catch(err => {
+          console.log('Unable to get permission to notify.', err);
+        });
+      }
+    }).catch(err => {
+      console.log('An error occurred while retrieving token. ', err);
+    });
+  }
 
-    if (!this.$.regText.value) {
-      return;
-    }
-
-    var xhr = this.$.register;
-    xhr.body = {
-      source: this.$.regText.value,
-      token: this.token
-    };
-
-    xhr.generateRequest();
+  initializeMessaging() {
+    this.messaging = firebase.messaging();
+    this.registerSelf();
+    this.messaging.onTokenRefresh(() => this.registerSelf());
   }
 
   handleRegistration() {
