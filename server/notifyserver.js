@@ -1,11 +1,13 @@
 const express = require('express');
-const jsonfile = require('jsonfile');
 const path = require('path');
 const admin = require('firebase-admin');
 const http = require('http');
 const app = express();
 const httpServer = http.createServer(app);
 const request = require('request');
+const debug = require('debug')('notify:server');
+const NotificationService = require('./notification/NotificationService');
+const DeviceService = require('./device/DeviceService');
 const serviceAccount = require('../private/waspserver-firebase.json');
 
 admin.initializeApp({
@@ -13,9 +15,14 @@ admin.initializeApp({
   databaseURL: "https://waspserver-saii.firebaseio.com"
 });
 
-const tokens = path.resolve(__dirname, "../private/tokens.json");
+const notificationService = new NotificationService();
+const deviceService = new DeviceService();
 
 app.use(express.json());
+app.use(express.urlencoded({
+  extended: true
+}));
+
 if (process.env.NODE_ENV === 'production') {
   app.use('/', express.static(path.join(__dirname, '../public/build/default')));
 } else {
@@ -29,58 +36,32 @@ app.get('/register', (req, res) => {
   }
 });
 
-app.post('/register', function(req, res) {
-  jsonfile.readFile(tokens, function(err, obj) {
-    const source = req.body.source;
-    const token = req.body.token;
+app.post('/register', function (req, res) {
+  const source = req.body.source;
+  const token = req.body.token;
 
-    console.log(source);
-    console.log(token);
-    var temp = null;
-    if (obj.length > 0) {
-      for (var item of obj) {
-        if (item.source === source) {
-          temp = item;
-          break;
-        }
-      }
-    }
-    if (temp) {
-      temp.token = token;
+  deviceService.addOrUpdateDevice(source, token).then(device => {
+    if (device) {
       res.status(200);
+      res.send(device);
     } else {
-      obj.push({
-        source: source,
-        token: token
-      });
-      res.status(201);
+      res.status(500);
     }
-
     res.end();
-    jsonfile.writeFile(tokens, obj, function(err) {
-      if (err) {
-        console.trace(err);
-      }
-    });
+  }).catch(err => {
+    debug('Registration error %O', err);
+    res.status(500);
+    res.end();
   });
 });
 
 app.get('/list', (req, res) => {
-  if (req.headers.issecure === "true") {
-    jsonfile.readFile(tokens, (err, obj) => {
-      if (err) {
-        res.send(err);
-        return;
-      }
-
-      let devices = [];
-
-      if (obj.length > 0) {
-        for (var item of obj) {
-          devices.push(item.source);
-        }
-      }
+  if (req.headers.user && req.headers.user !== "false") {
+    deviceService.getAllDeviceNames().then(devices => {
       res.send(devices);
+    }).catch(err => {
+      debug('Error populating all devices %O', err);
+      res.status(500);
       res.end();
     });
   } else {
@@ -89,92 +70,65 @@ app.get('/list', (req, res) => {
   }
 });
 
-app.post('/*', function(req, res) {
+app.post('/*', function (req, res) {
   const target = decodeURI(req.url.substring(1));
 
-  jsonfile.readFile(tokens, function(err, obj) {
-    var token;
-    for (var item of obj) {
-      if (item.source === target) {
-        token = item.token;
-      }
-    }
+  const {
+    title,
+    body,
+    source
+  } = req.body;
 
-    showDataInLCD('New Notification for ' + target + ' titled ' + req.body.title);
-    if (token) {
-      const message = {
-        token: token,
-        notification: {
-          title: req.body.title,
-          body: req.body.body
-        },
-        android: {
-          ttl: 60 * 1000 //1 min
-        },
-        webpush: {
-          headers: {
-            TTL: '60'
+  deviceService.getDeviceWithName(target).then(device => {
+    if (device) {
+      notificationService.saveNotification(title, body, source, target).then(notification => {
+        const message = {
+          token: device.token,
+          notification: {
+            title: title,
+            body: body
+          },
+          android: {
+            ttl: 60 * 1000 //1 min
+          },
+          webpush: {
+            headers: {
+              TTL: '60'
+            }
           }
-        }
-      };
+        };
 
-      admin.messaging().send(message)
-        .then((response) => {
-          res.send("Success");
-        })
-        .catch((error) => {
-          res.status(500);
-          res.send({
-            error: error
+        admin.messaging().send(message).then(response => {
+          notification.response = response;
+          res.send(notification);
+
+          notificationService.updateNotification(notification).catch(err => {
+            debug('Error updating notification %O', err);
           });
-          showDataInLCD(target + ' error 500');
+        }).catch(error => {
+          notification.response = error.code;
+          res.send(notification);
+
+          notificationService.updateNotification(notification).catch(err => {
+            debug('Error updating notification %O', err);
+          });
         });
+      }).catch(err => {
+        debug('Error saving notification: %O', err);
+        res.status(500);
+        res.end();
+      });
     } else {
       res.status(404);
-      res.send({
-        error: 'Device not found'
-      });
+      res.send('Device not found');
     }
+  }).catch(err => {
+    debug('Error retriving device: %O', err);
+    res.status(500);
+    res.end();
   });
 });
 
-function showDataInLCD(str) {
-  let postData = {
-    msg: {
-      msg: str,
-      duration: 5
-    }
-
-  }
-  request.post('http://localhost:8040/lcd/displayMsg', {
-    json: postData
-  }, function(err, res, body) {
-    if (err) {
-      console.error(err);
-    }
-  });
-}
-
-function registerSelf() {
-  const postData = {
-    path: 'notify',
-    ip: 'http://localhost:8020',
-    name: 'notify'
-  }
-
-  request.post('http://localhost:8000/register', {
-    form: postData
-  }, function(err, res, body) {
-    if (res && res.statusCode && (res.statusCode === 200 || res.statusCode === 204)) {
-      console.log("Successfully registered");
-    } else {
-      console.log("Will retry");
-      setTimeout(registerSelf, 2000);
-    }
-  });
-}
-
-httpServer.listen(process.env.PORT || 8020, function() {
-  registerSelf();
+httpServer.listen(process.env.PORT || 8020, function () {
   console.log("Server started on port: " + httpServer.address().port);
 });
