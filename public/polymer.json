@@ -4,7 +4,7 @@
   "sources": [
     "css/*",
     "images/*",
-    "res.js",
+    "firebase-init.js",
     "sw.js"
   ],
   "extraDependencies": ["manifest.json", "node_modules/web-animations-js/*"],
