@@ -79,6 +79,22 @@ app.post('/*', function (req, res) {
     source
   } = req.body;
 
+  sendNotificationToDevice(title, body, source, target, res);
+});
+
+app.get('/*', (req, res) => {
+  const target = decodeURI(req.path.substring(1));
+
+  const {
+    title,
+    body,
+    source
+  } = req.query;
+
+  sendNotificationToDevice(title, body, source, target, res);
+})
+
+function sendNotificationToDevice(title, body, source, target, res) {
   deviceService.getDeviceWithName(target).then(device => {
     if (device) {
       notificationService.saveNotification(title, body, source, target).then(notification => {
@@ -127,7 +143,7 @@ app.post('/*', function (req, res) {
     res.status(500);
     res.end();
   });
-});
+};
 
 httpServer.listen(process.env.PORT || 8020, function () {
   console.log("Server started on port: " + httpServer.address().port);
