@@ -5,11 +5,9 @@ const http = require('http');
 const app = express();
 const httpServer = http.createServer(app);
 const request = require('request');
-const WebSocket = require('ws');
 const debug = require('debug')('notify:server');
 const NotificationService = require('./notification/NotificationService');
 const DeviceService = require('./device/DeviceService');
-const SocketClientService = require('./sockets/SocketClientService');
 const serviceAccount = require('../private/waspserver-firebase.json');
 
 admin.initializeApp({
@@ -19,7 +17,7 @@ admin.initializeApp({
 
 const notificationService = new NotificationService();
 const deviceService = new DeviceService();
-const socketClientService = new SocketClientService();
+const WebsocketServer = require('./websocketServer.js')(deviceService);
 
 app.use(express.json());
 app.use(express.urlencoded({
@@ -73,6 +71,38 @@ app.get('/list', (req, res) => {
   }
 });
 
+app.post('/socket/*', (req, res) => {
+  const target = decodeURI(req.url.substring(8));
+  const {
+    type,
+    payload
+  } = req.body;
+
+  if (!(type && payload)) {
+    res.status(500);
+    res.send("'type' and 'payload' must be set");
+    res.end();
+    return;
+  }
+
+  deviceService.getDeviceWithName(target).then(device => {
+    sendViaWebsocket(device, type, payload).then(() => {
+      debug('Successfully sent %s to %s', type, device.name);
+      res.status(200);
+      res.end();
+    }).catch(e => {
+      debug('Error occured while sending via websocket');
+      debug('%O', e);
+      res.status(500);
+      res.send('Error while sending via websocket');
+    });
+  }).catch(err => {
+    debug('Error retriving device: %O', err);
+    res.status(500);
+    res.end();
+  });
+});
+
 app.post('/*', function (req, res) {
   const target = decodeURI(req.url.substring(1));
 
@@ -82,7 +112,14 @@ app.post('/*', function (req, res) {
     source
   } = req.body;
 
-  sendNotificationToDevice(title, body, source, target, res);
+  sendNotificationToDevice(title, body, source, target).then(notification => {
+    res.send(notification);
+  }).catch(err => {
+    debug('Internal error while sending notification');
+    debug('%O', err)
+    res.status(500);
+    res.send();
+  });
 });
 
 app.get('/*', (req, res) => {
@@ -94,79 +131,99 @@ app.get('/*', (req, res) => {
     source
   } = req.query;
 
-  sendNotificationToDevice(title, body, source, target, res);
+  sendNotificationToDevice(title, body, source, target).then(notification => {
+    res.send(notification);
+  }).catch(err => {
+    debug('Internal error while sending notification');
+    debug('%O', err);
+    res.status(500);
+    res.send();
+  });
 })
 
-function sendNotificationToDevice(title, body, source, target, res) {
-  deviceService.getDeviceWithName(target).then(device => {
-    notificationService.saveNotification(title, body, source, target).then(notification => {
-      let socketClient = socketClientService.findSocketClient(device.name);
-      if (socketClient) {
-        sendNotificationViaWebsocket(socketClient, notification, res);
-      } else if (device.token) {
-        sendNotificationViaFCM(device, notification, res);
-      } else {
-        res.send('No fcm token or websocket present');
-      }
-    }).catch(err => {
-      debug('Error saving notification: %O', err);
-      res.status(500);
-      res.end();
-    });
-  }).catch(err => {
-    debug('Error retriving device: %O', err);
-    res.status(500);
-    res.end();
-  });
+async function sendNotificationToDevice(title, body, source, target) {
+
+  let device = await deviceService.getDeviceWithName(target);
+  let notification = await notificationService.saveNotification(title, body, source, target);
+
+  let resp = await sendViaWebsocket(device, 'Notification', notification);
+  debug('Sending via websocket status: %s', resp.success);
+
+  if (resp.success === false) {
+    resp = await sendNotificationViaFCM(device, notification);
+    debug('Sending via FCM status: %s', resp.success);
+  }
+
+  notification.response = resp.response;
+
+  await notificationService.updateNotification(notification);
+
+  if (resp.success === false) {
+    throw new Error('Unable to send notification');
+  }
 };
 
-function sendNotificationViaFCM(device, notification, res) {
-  const message = {
-    token: device.token,
-    notification: {
-      title: notification.title,
-      body: notification.message
-    },
-    android: {
-      ttl: 60 * 1000 //1 min
-    },
-    webpush: {
-      headers: {
-        TTL: '60'
-      }
-    }
-  };
+function sendNotificationViaFCM(device, notification) {
+  return new Promise((resolve, reject) => {
+    if (device.token) {
+      const message = {
+        token: device.token,
+        notification: {
+          title: notification.title,
+          body: notification.message
+        },
+        android: {
+          ttl: 60 * 1000 //1 min
+        },
+        webpush: {
+          headers: {
+            TTL: '60'
+          }
+        }
+      };
 
-  admin.messaging().send(message).then(response => {
-    notification.response = response;
-  }).catch(error => {
-    notification.response = error.code;
-  }).finally(() => {
-    res.send(notification);
-    notificationService.updateNotification(notification).catch(err => {
-      debug('Error updating notification %O', err);
-    });
+      admin.messaging().send(message).then(resp => {
+        resolve({
+          success: true,
+          response: resp
+        });
+      }).catch(err => {
+        resolve({
+          success: false,
+          response: err.code
+        })
+      });
+    } else {
+      resolve({
+        success: false,
+        response: 'No device token present'
+      });
+    }
   });
 }
 
-function sendNotificationViaWebsocket(socketClient, notification, res) {
-  let message = {
-    type: 'Notification',
-    payload: notification
-  }
-  socketClient.socket.send(JSON.stringify(message), (err) => {
-    if (err) {
-      debug('Socket send error %s', err);
-      notification.response = err;
+function sendViaWebsocket(device, type, payload) {
+  return new Promise((resolve, reject) => {
+    if (WebsocketServer.isDeviceConnectedViaWebsocket(device)) {
+      WebsocketServer.sendToDeviceViaWebsocket(device, type, payload, (err) => {
+        if (err) {
+          resolve({
+            success: false,
+            response: err
+          });
+        } else {
+          resolve({
+            success: true,
+            response: null
+          });
+        }
+      });
     } else {
-      notification.response = 'Notification sent via websocket';
-      debug(notification.response);
+      resolve({
+        success: false,
+        response: 'No such device connected via websocket'
+      });
     }
-
-    res.send(notification);
-    notificationService.updateNotification(notification).catch(err => {
-      debug('Error updating notification %s', err);
-    });
   });
 }
 
@@ -176,76 +233,3 @@ httpServer.listen(process.env.PORT || 8020, function () {
 
 
 // WebSocket Connection
-const websocketServer = new WebSocket.Server({
-  port: 9000,
-  perMessageDeflate: {
-    zlibDeflateOptions: {
-      chunkSize: 1024,
-      memLevel: 7,
-      level: 3
-    },
-    zlibInflateOptions: {
-      chunkSize: 10 * 1024
-    },
-    clientNoContextTakeover: true, // Defaults to negotiated value.
-    serverNoContextTakeover: true, // Defaults to negotiated value.
-    serverMaxWindowBits: 10, // Defaults to negotiated value.
-    concurrencyLimit: 10, // Limits zlib concurrency for perf.
-    threshold: 1024 // Size (in bytes) below which messages
-  }
-});
-
-websocketServer.on('connection', (websocket, req) => {
-  websocket.retryCount = 0;
-  let deviceName = decodeURI(req.url.substring(8)); // /socket/*
-
-  if (deviceName && deviceName.length > 1) {
-    deviceService.getDeviceWithName(deviceName).then(device => {
-      socketClientService.addSocketClient(device, websocket);
-      debug('Device %o connected via socket', device);
-    }).catch(err => {
-      debug('Error retriving device : %s', err);
-      websocket.terminate();
-    });
-  } else {
-    websocket.terminate();
-  }
-
-  websocket.on('pong', () => {
-    websocket.retryCount = 0;
-
-    let device = socketClientService.findDevice(websocket);
-    if (device) {
-      debug('pong from %s', device.name);
-    } else {
-      debug('pong from <<Unknown>>');
-    }
-  });
-
-  websocket.on('message', (message) => {
-    debug('received: %s', message);
-
-    // let response = JSON.parse(message);
-  });
-
-  websocket.on('close', () => {
-    let socketClient = socketClientService.deleteSocketClient(websocket);
-    if (socketClient) {
-      debug("Socket connection to %s closed", socketClient.device.name);
-    } else {
-      debug('null socketClient closed');
-    }
-  });
-});
-
-//Check socket connetion every 30 seconds. Terminate after 3 successive ping failure
-const checkSocketConnection = setInterval(() => {
-  socketClientService.getListOfSockets().forEach(socket => {
-    if (socket.retryCount === 3) {
-      return socket.terminate();
-    }
-
-    socket.retryCount = socket.retryCount + 1;
-    socket.ping(() => {});
-  });
-}, 30 * 1000);
