@@ -45,6 +45,16 @@ class NotificationRepo {
     debug('Updating notification: %s', notification.id);
     return this.client.query(updateQuery);
   }
+
+  getNotification(id) {
+    let getQuery = {
+      name: 'get-notification',
+      text: 'SELECT * FROM notifications WHERE id = $1',
+      values: [id]
+    }
+    debug('Get notification: %s', notification.id);
+    return this.client.query(getQuery);
+  }
 }
 
 module.exports = NotificationRepo;

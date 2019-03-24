@@ -35,6 +35,17 @@ class NotificationService {
       throw new Error('No notifications added');
     }
   }
+
+  async getNotification(id) {
+    let res = await notificationRepo.getNotification(id);
+
+    if (res.rows && res.rows[0] && Object.keys(res.rows[0]).length > 0) {
+      debug('Notification found');
+      return new Notification(res.rows[0]);
+    } else {
+      throw new Error('No notification found');
+    }
+  }
 }
 
 module.exports = NotificationService;

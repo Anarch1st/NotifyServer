@@ -3,8 +3,8 @@ class Device {
     this.id = params.id;
     this.created_at = params.created_at;
     this.modified_at = params.modified_at;
-    this.name = params.name;
-    this.token = params.token;
+    this.name = params.name.trim();
+    this.token = params.token ? params.token.trim() : null;
   }
 }
 

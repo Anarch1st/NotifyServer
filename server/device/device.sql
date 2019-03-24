@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS devices (
   created_at timestamp with time zone default CURRENT_TIMESTAMP,
   modified_at timestamp with time zone default CURRENT_TIMESTAMP,
   name char(20) unique,
-  token varchar not null
+  token varchar
 );
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
