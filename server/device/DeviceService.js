@@ -60,7 +60,7 @@ class DeviceService {
       return device;
     } else {
       debug('Device not found.');
-      return null;
+      throw new Error('No device found');
     }
   }
 }
